@@ -18,7 +18,7 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 CPPFLAGS ?= $(INC_FLAGS) -pthread -Wall -std=c++11
 LDFLAGS ?=
 
-all: verilate $(BUILD_DIR)/simlib-test
+all: verilate $(BUILD_DIR)/simlib-test $(BUILD_DIR)/amos
 	cd $(BUILD_DIR) && make -j -f Vamos_fifo.mk Vamos_fifo
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
@@ -44,6 +44,9 @@ verilate:
 
 $(BUILD_DIR)/simlib-test: $(BUILD_DIR)/csrc/simlib-test.cpp.o
 	$(CXX) $(LDFLAGS) -o $@ $<
+
+$(BUILD_DIR)/amos: $(BUILD_DIR)/csrc/amos.cpp.o
+	$(CXX) $(LDFLAGS) -lfesvr  -o $@ $<
 
 .PHONY: clean
 
