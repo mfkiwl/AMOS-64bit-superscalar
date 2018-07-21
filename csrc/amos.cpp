@@ -1,10 +1,13 @@
 // Copyright (c) 2018 AMOS Developers
-#include <simlib.hpp>
-#include <amos.hpp>
+#include "amos.hpp"
+
 #include <vector>
-#include <riscv/encoding.h>
 #include <cstdio>
 #include <iostream>
+#include <utility>
+
+#include "simlib.hpp"
+#include "riscv/encoding.h"
 
 // TODO(zarubaf) Re-factor this to the appropriate place
 #define PGSHIFT 12
@@ -15,7 +18,6 @@ const reg_t PGSIZE = 1 << PGSHIFT;
 amos::amos(int argc, char** argv,
            std::vector<std::pair<reg_t, mem_t*>> mems)
   : htif_t(argc, argv), mems(mems) {
-
   // connect memories to bus
   for (auto& x : mems) {
     bus.add_device(x.first, x.second);
@@ -35,18 +37,17 @@ amos::~amos() {
 /// HTIF wants to read a chunk of memory
 void amos::read_chunk(addr_t taddr, size_t len, void* dst) {
   assert(len == 8);
-  bus.load(taddr, len, (uint8_t*) dst);
+  bus.load(taddr, len, reinterpret_cast<uint8_t*>(dst));
 }
 
 /// HTIF wants to write a chunk of memory
 void amos::write_chunk(addr_t taddr, size_t len, const void* src) {
   assert(len == 8);
-  bus.store(taddr, len, (uint8_t*) src);
+  bus.store(taddr, len, reinterpret_cast<const uint8_t *>(src));
 }
 
 /// HTIF reset command
 void amos::reset() {
-
 }
 
 struct Producer {
@@ -119,7 +120,7 @@ void amos::step() {
 /// Main simulation thread
 void sim_thread_main(void* arg) {
   while (true) {
-    ((amos*)arg)->step();
+    (reinterpret_cast<amos*>(arg))->step();
   }
 }
 
@@ -151,7 +152,8 @@ static std::vector<std::pair<reg_t, mem_t*>> make_mems(const char* arg) {
   auto mb = strtoull(arg, &p, 0);
   if (*p == 0) {
     reg_t size = reg_t(mb) << 20;
-    return std::vector<std::pair<reg_t, mem_t*>>(1, std::make_pair(reg_t(DRAM_BASE), new mem_t(size)));
+    return std::vector<std::pair<reg_t, mem_t*>>
+                        (1, std::make_pair(reg_t(DRAM_BASE), new mem_t(size)));
   }
 
   // handle base/size tuples
@@ -173,8 +175,7 @@ static std::vector<std::pair<reg_t, mem_t*>> make_mems(const char* arg) {
   return res;
 }
 
-int main (int argc, char **argv) {
-
+int main(int argc, char **argv) {
   std::vector<std::pair<reg_t, mem_t*>> mems;
   // TODO(zarubaf) handle this with command line arguments
   mems = make_mems("2048");
