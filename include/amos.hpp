@@ -4,6 +4,7 @@
 #include <fesvr/context.h>
 #include <devices.h>
 #include <vector>
+#include <simlib.hpp>
 
 class amos : public htif_t
 {
@@ -20,6 +21,9 @@ private:
   void write_chunk(addr_t taddr, size_t len, const void* src);
   void idle();
   void reset();
+
+  Simulation *sim;
+  Builder *builder;
 
   void step();
   friend void sim_thread_main(void* arg);

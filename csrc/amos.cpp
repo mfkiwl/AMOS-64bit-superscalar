@@ -4,6 +4,7 @@
 #include <vector>
 #include <riscv/encoding.h>
 #include <cstdio>
+#include <iostream>
 
 // TODO(zarubaf) Re-factor this to the appropriate place
 #define PGSHIFT 12
@@ -20,11 +21,14 @@ amos::amos(int argc, char** argv,
     bus.add_device(x.first, x.second);
   }
 
+  sim = new Simulation();
+  builder = new Builder(sim);
 }
 
 /// Destructor
 amos::~amos() {
-
+  // delete sim;
+  // delete builder;
 }
 
 /// HTIF wants to read a chunk of memory
@@ -44,19 +48,72 @@ void amos::reset() {
 
 }
 
+struct Producer {
+  ChannelTx<uint64_t> out;
+  uint64_t counter;
+
+  void update() {
+    if (out) {
+      out = counter++;
+    }
+  }
+};
+
+struct Consumer  {
+  ChannelRx<uint64_t> in;
+
+  void update() {
+    if (in) {
+      std::cout << "consumed " << in.pop() << "\n";
+    }
+  }
+};
+
+struct Mangler {
+  ChannelRx<uint64_t> in;
+  ChannelTx<uint64_t> out;
+  // sequential part
+  void update() {
+    if (in && out) {
+      auto v = in.pop();
+      out = v ^ (v << 13);
+    }
+  }
+};
+
 /// Build phase
 void amos::build() {
   // construct the processor
-
+  auto c0 = builder->make_channel<uint64_t>();
+  auto c1 = builder->make_channel<uint64_t>();
+  auto c2 = builder->make_channel<uint64_t>();
+  builder->add_component(Producer { .out = c0.tx, .counter = 0 });
+  builder->add_component(Mangler { .in = c0.rx, .out = c1.tx });
+  builder->add_component(Mangler { .in = c1.rx, .out = c2.tx });
+  builder->add_component(Consumer { .in = c2.rx });
 }
 
 /// Make a single simulation step
 void amos::step() {
-  // just write one to the main memory now, super crude but EOC works
-  uint8_t p = 0x1;
-  bus.store(0x80001000, sizeof(uint8_t), &p);
-  // switch back to host, determine EOC and handle sys-calls with RISCV-PK
-  host->switch_to();
+  uint64_t cycle_count = 0;
+
+  while (true) {
+    sim->step();
+    // just write one to the main memory now, super crude but EOC works
+
+    if (cycle_count > 10000) {
+      uint8_t p = 0x1;
+      bus.store(0x80001000, sizeof(uint8_t), &p);
+    }
+
+    // switch back to host, determine EOC and handle sys-calls with RISCV-PK
+    // only switch back every 100th cycle
+    if (cycle_count % 100 == 0)
+      host->switch_to();
+
+    // increase cycle count by one
+    cycle_count++;
+  }
 }
 
 /// Main simulation thread
