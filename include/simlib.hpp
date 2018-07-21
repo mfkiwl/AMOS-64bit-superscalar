@@ -92,7 +92,7 @@ protected:
 template <typename T>
 class ChannelTx {
 protected:
-	friend struct Builder;
+	friend class Builder;
 
 	ChannelSlot<T> *slot;
 	ChannelTx(ChannelSlot<T> *slot) : slot(slot) {}
@@ -126,7 +126,7 @@ public:
 template <typename T>
 class ChannelRx {
 protected:
-	friend struct Builder;
+	friend class Builder;
 
 	ChannelSlot<T> *slot;
 	ChannelRx(ChannelSlot<T> *slot) : slot(slot) {}
