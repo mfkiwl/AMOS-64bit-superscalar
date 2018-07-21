@@ -23,12 +23,13 @@ amos::amos(int argc, char** argv,
 
   sim = new Simulation();
   builder = new Builder(sim);
+  cycle_count = 0;
 }
 
 /// Destructor
 amos::~amos() {
-  // delete sim;
-  // delete builder;
+  delete sim;
+  delete builder;
 }
 
 /// HTIF wants to read a chunk of memory
@@ -95,30 +96,31 @@ void amos::build() {
 
 /// Make a single simulation step
 void amos::step() {
-  uint64_t cycle_count = 0;
+  // do one step of simulation here
+  sim->step();
 
-  while (true) {
-    sim->step();
-    // just write one to the main memory now, super crude but EOC works
-
-    if (cycle_count > 10000) {
-      uint8_t p = 0x1;
-      bus.store(0x80001000, sizeof(uint8_t), &p);
-    }
-
-    // switch back to host, determine EOC and handle sys-calls with RISCV-PK
-    // only switch back every 100th cycle
-    if (cycle_count % 100 == 0)
-      host->switch_to();
-
-    // increase cycle count by one
-    cycle_count++;
+  // just write one to the main memory now, super crude but EOC works
+  // at least for standard riscv-test binaries as they all have their
+  // .tohost symbol at 0x80001000
+  if (cycle_count > 10000) {
+    uint8_t p = 0x1;
+    bus.store(0x80001000, sizeof(uint8_t), &p);
   }
+
+  // switch back to host, determine EOC and handle sys-calls with RISCV-PK
+  // only switch back every 100th cycle
+  if (cycle_count % 100 == 0)
+    host->switch_to();
+
+  // increase cycle count by one
+  cycle_count++;
 }
 
 /// Main simulation thread
 void sim_thread_main(void* arg) {
-  ((amos*)arg)->step();
+  while (true) {
+    ((amos*)arg)->step();
+  }
 }
 
 /// Start simulation

@@ -24,6 +24,7 @@ private:
 
   Simulation *sim;
   Builder *builder;
+  uint64_t cycle_count = 0;
 
   void step();
   friend void sim_thread_main(void* arg);
