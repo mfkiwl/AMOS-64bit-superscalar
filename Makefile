@@ -2,7 +2,7 @@ TARGET_EXEC ?= amos_tb
 
 BUILD_DIR ?= ./build
 SRC_DIRS ?= ./csrc
-INC_DIRS ?= ./include
+INC_DIRS ?= ./include ./riscv-isa-sim/
 RTL_DIR ?= ./rtl
 
 VERILATOR ?= verilator
@@ -40,13 +40,13 @@ $(BUILD_DIR)/%.cpp.o: %.cpp $(HDRS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 verilate:
-	$(VERILATOR) --Mdir $(BUILD_DIR) $(RTL_DIR)/amos_fifo.sv --cc --exe csrc/amos_tb.cpp
+	$(VERILATOR) --Mdir $(BUILD_DIR) $(RTL_DIR)/amos_fifo.sv --cc --exe csrc/verilog_tb.cpp
 
 $(BUILD_DIR)/simlib-test: $(BUILD_DIR)/csrc/simlib-test.cpp.o
 	$(CXX) $(LDFLAGS) -o $@ $<
 
-$(BUILD_DIR)/amos: $(BUILD_DIR)/csrc/amos.cpp.o
-	$(CXX) $(LDFLAGS) -lfesvr  -o $@ $<
+$(BUILD_DIR)/amos: $(BUILD_DIR)/csrc/amos.cpp.o $(BUILD_DIR)/csrc/devices.cpp.o
+	$(CXX) $(LDFLAGS) -lfesvr -o $@ $^
 
 .PHONY: clean
 

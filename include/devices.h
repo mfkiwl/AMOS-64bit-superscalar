@@ -5,11 +5,25 @@
 #include <map>
 #include <vector>
 
+typedef uint64_t reg_t;
+
 class abstract_device_t {
  public:
   virtual bool load(reg_t addr, size_t len, uint8_t* bytes) = 0;
   virtual bool store(reg_t addr, size_t len, const uint8_t* bytes) = 0;
   virtual ~abstract_device_t() {}
+};
+
+class bus_t : public abstract_device_t {
+ public:
+  bool load(reg_t addr, size_t len, uint8_t* bytes);
+  bool store(reg_t addr, size_t len, const uint8_t* bytes);
+  void add_device(reg_t addr, abstract_device_t* dev);
+
+  std::pair<reg_t, abstract_device_t*> find_device(reg_t addr);
+
+ private:
+  std::map<reg_t, abstract_device_t*> devices;
 };
 
 class mem_t : public abstract_device_t {
@@ -22,8 +36,8 @@ class mem_t : public abstract_device_t {
   mem_t(const mem_t& that) = delete;
   ~mem_t() { free(data); }
 
-  bool load(reg_t addr, size_t len, uint8_t* bytes) { return false; }
-  bool store(reg_t addr, size_t len, const uint8_t* bytes) { return false; }
+  bool load(reg_t addr, size_t len, uint8_t* bytes);
+  bool store(reg_t addr, size_t len, const uint8_t* bytes);
   char* contents() { return data; }
   size_t size() { return len; }
 
