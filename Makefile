@@ -2,7 +2,7 @@ TARGET_EXEC ?= amos_tb
 
 BUILD_DIR ?= ./build
 SRC_DIRS ?= ./csrc
-INC_DIRS ?= ./include ./riscv-isa-sim/
+INC_DIRS ?= ./include ./riscv-isa-sim/softfloat
 RTL_DIR ?= ./rtl
 
 VERILATOR ?= verilator
@@ -49,7 +49,9 @@ verilate:
 $(BUILD_DIR)/simlib-test: $(BUILD_DIR)/csrc/simlib-test.cpp.o
 	$(CXX) $(LDFLAGS) -o $@ $<
 
-$(BUILD_DIR)/amos: $(BUILD_DIR)/csrc/amos.cpp.o $(BUILD_DIR)/csrc/devices.cpp.o $(BUILD_DIR)/csrc/frontend.cc.o
+$(BUILD_DIR)/amos: $(BUILD_DIR)/csrc/amos.cpp.o $(BUILD_DIR)/csrc/devices.cpp.o  \
+				   $(BUILD_DIR)/csrc/frontend.cc.o $(BUILD_DIR)/csrc/disasm.cc.o \
+				   $(BUILD_DIR)/csrc/regnames.cc.o
 	$(CXX) $(LDFLAGS) -lfesvr -o $@ $^
 
 .PHONY: clean

@@ -8,8 +8,10 @@
 #include <utility>
 
 #include "simlib.hpp"
-#include "riscv/encoding.h"
+#include "encoding.h"
 #include "frontend.h"
+#include "decode.h"
+#include "disasm.h"
 
 // TODO(zarubaf) Re-factor this to the appropriate place
 #define PGSHIFT 12
@@ -19,7 +21,7 @@ const reg_t PGSIZE = 1 << PGSHIFT;
 // TODO(zarubaf) Re-factor this to the appropriate place, should also be renamed
 amos::amos(int argc, char** argv,
            std::vector<std::pair<reg_t, mem_t*>> mems)
-  : htif_t(argc, argv), mems(mems) {
+  : htif_t(argc, argv), mems(mems), disassembler(64) {
   // connect memories to bus
   for (auto& x : mems) {
     bus.add_device(x.first, x.second);
@@ -58,6 +60,7 @@ void amos::reset() {
 /// Dummy consumer to print values of instruction fetch stage
 struct Consumer  {
   ChannelRx<instr_t> in;
+  disassembler_t *disassembler;
 
   void reset() {};
 
@@ -68,7 +71,11 @@ struct Consumer  {
       // std::cout << std::setfill('0') << std::setw(20);
       std::cout << "consumed ";
       std::cout << std::setfill('0') << std::setw(16) << std::hex << instr.pc;
-      std::cout << ": 0x"<< std::setfill('0') << std::setw(8) << instr.instr_word << "\n";
+      // this instruction is defined in decode.h
+      insn_t insn = 0;
+      insn = (insn_t) instr.instr_word;
+      std::cout << ": 0x"<< std::setfill('0') << std::setw(8) << instr.instr_word;
+      std::cout << "\t"<< disassembler->disassemble(insn_t(insn)) << "\n";
     }
   }
 };
@@ -82,7 +89,11 @@ void amos::build() {
                                     .bootaddr = 0x80000000,
                                     .instr_if = bus
                                   });
-  builder->add_component(Consumer { .in = instr.rx });
+  // TODO(zarubaf) that creates a ton of problems passing the disassembler crudely as a pointer
+  builder->add_component(Consumer {
+                                    .in = instr.rx,
+                                    .disassembler = &disassembler
+                                  });
 }
 
 /// Make a single simulation step

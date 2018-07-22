@@ -6,6 +6,8 @@
 #include <vector>
 #include <simlib.hpp>
 
+#include "disasm.h"
+
 class amos : public htif_t
 {
 public:
@@ -24,6 +26,7 @@ private:
 
   Simulation *sim;
   Builder *builder;
+
   Cycle cycle_count = 0;
 
   void step();
@@ -33,6 +36,7 @@ private:
   context_t target;
 
   bus_t bus;
+  disassembler_t disassembler;
   std::vector<std::pair<reg_t, mem_t*>> mems;
 
   size_t chunk_align() { return 8; }
