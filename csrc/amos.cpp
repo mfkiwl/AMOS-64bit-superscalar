@@ -4,10 +4,12 @@
 #include <vector>
 #include <cstdio>
 #include <iostream>
+#include <iomanip>
 #include <utility>
 
 #include "simlib.hpp"
 #include "riscv/encoding.h"
+#include "frontend.h"
 
 // TODO(zarubaf) Re-factor this to the appropriate place
 #define PGSHIFT 12
@@ -48,37 +50,25 @@ void amos::write_chunk(addr_t taddr, size_t len, const void* src) {
 
 /// HTIF reset command
 void amos::reset() {
+  // reset the simulation
+  sim->reset();
 }
 
-struct Producer {
-  ChannelTx<uint64_t> out;
-  uint64_t counter;
 
-  void update() {
-    if (out) {
-      out = counter++;
-    }
-  }
-};
-
+/// Dummy consumer to print values of instruction fetch stage
 struct Consumer  {
-  ChannelRx<uint64_t> in;
+  ChannelRx<instr_t> in;
+
+  void reset() {};
 
   void update() {
     if (in) {
-      std::cout << "consumed " << in.pop() << "\n";
-    }
-  }
-};
-
-struct Mangler {
-  ChannelRx<uint64_t> in;
-  ChannelTx<uint64_t> out;
-  // sequential part
-  void update() {
-    if (in && out) {
-      auto v = in.pop();
-      out = v ^ (v << 13);
+      instr_t instr = in.pop();
+      // pad with zeros
+      // std::cout << std::setfill('0') << std::setw(20);
+      std::cout << "consumed ";
+      std::cout << std::setfill('0') << std::setw(16) << std::hex << instr.pc;
+      std::cout << ": 0x"<< std::setfill('0') << std::setw(8) << instr.instr_word << "\n";
     }
   }
 };
@@ -86,13 +76,13 @@ struct Mangler {
 /// Build phase
 void amos::build() {
   // construct the processor
-  auto c0 = builder->make_channel<uint64_t>();
-  auto c1 = builder->make_channel<uint64_t>();
-  auto c2 = builder->make_channel<uint64_t>();
-  builder->add_component(Producer { .out = c0.tx, .counter = 0 });
-  builder->add_component(Mangler { .in = c0.rx, .out = c1.tx });
-  builder->add_component(Mangler { .in = c1.rx, .out = c2.tx });
-  builder->add_component(Consumer { .in = c2.rx });
+  auto instr = builder->make_channel<instr_t>();
+  builder->add_component(frontend {
+                                    .instr = instr.tx,
+                                    .bootaddr = 0x80000000,
+                                    .instr_if = bus
+                                  });
+  builder->add_component(Consumer { .in = instr.rx });
 }
 
 /// Make a single simulation step
@@ -103,7 +93,7 @@ void amos::step() {
   // just write one to the main memory now, super crude but EOC works
   // at least for standard riscv-test binaries as they all have their
   // .tohost symbol at 0x80001000
-  if (cycle_count > 10000) {
+  if (cycle_count > 40) {
     uint8_t p = 0x1;
     bus.store(0x80001000, sizeof(uint8_t), &p);
   }

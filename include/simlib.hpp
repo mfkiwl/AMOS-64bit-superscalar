@@ -47,6 +47,7 @@ struct ChannelSlot : public AbstractChannelSlot {
 /// interface. The simulation assumes ownership of all components and triggers
 /// updates as appropriate.
 struct AbstractComponent {
+  virtual void reset() = 0;
 	virtual void update() = 0;
 };
 
@@ -55,6 +56,11 @@ struct Component : public AbstractComponent {
 	T wrapped;
 
 	Component(T wrapped) : wrapped(wrapped) {}
+
+  void
+  reset() override {
+    wrapped.reset();
+  }
 
 	void
 	update() override {
@@ -77,6 +83,13 @@ public:
 			c->transport();
 		}
 	}
+
+  void reset() {
+    // Simulate components.
+    for (const auto &c : components) {
+      c->reset();
+    }
+  }
 
 protected:
 	friend class Builder;

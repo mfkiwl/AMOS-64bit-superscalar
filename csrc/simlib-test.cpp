@@ -6,6 +6,7 @@ struct Producer {
 	ChannelTx<uint64_t> out;
 	uint64_t counter;
 
+  void reset() {};
 	void update() {
 		if (out) {
 			out = counter++;
@@ -16,6 +17,7 @@ struct Producer {
 struct Consumer  {
 	ChannelRx<uint64_t> in;
 
+  void reset() {};
 	void update() {
 		if (in) {
 			std::cout << "consumed " << in.pop() << "\n";
@@ -27,6 +29,7 @@ struct Mangler {
 	ChannelRx<uint64_t> in;
 	ChannelTx<uint64_t> out;
 
+  void reset() {};
 	void update() {
 		if (in && out) {
 			auto v = in.pop();
