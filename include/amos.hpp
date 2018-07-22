@@ -2,14 +2,13 @@
 #pragma once
 #include <fesvr/htif.h>
 #include <fesvr/context.h>
-#include <devices.h>
 #include <vector>
 #include <simlib.hpp>
 
+#include "devices.h"
 #include "disasm.h"
 
-class amos : public htif_t
-{
+class amos : public htif_t {
 public:
   amos(int argc, char** argv,
            std::vector<std::pair<reg_t, mem_t*>> mems);

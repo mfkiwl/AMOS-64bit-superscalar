@@ -1,5 +1,7 @@
 // Copyright (c) 2018 AMOS Developers
-#pragma once
+#ifndef INCLUDE_DEVICES_H_
+#define INCLUDE_DEVICES_H_
+
 #include <cstdlib>
 #include <string>
 #include <map>
@@ -45,3 +47,6 @@ class mem_t : public abstract_device_t {
   char* data;
   size_t len;
 };
+
+#endif    // INCLUDE_DEVICES_H_
+

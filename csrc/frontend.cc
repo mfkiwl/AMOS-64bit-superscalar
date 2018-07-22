@@ -3,13 +3,13 @@
 
 #include "simlib.hpp"
 
-void frontend::reset() {
+void Frontend::reset() {
   // start fetching from the boot address
   pc = bootaddr;
 }
 
 // sequential part
-void frontend::update() {
+void Frontend::update() {
   uint32_t loaded_value [2];
   // load 64-bit from the bus
   instr_if.load(pc, 8, (uint8_t*) loaded_value);

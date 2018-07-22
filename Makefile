@@ -4,6 +4,7 @@ BUILD_DIR ?= ./build
 SRC_DIRS ?= ./csrc
 INC_DIRS ?= ./include ./riscv-isa-sim/softfloat
 RTL_DIR ?= ./rtl
+SPIKE_DIR ?= ./riscv-isa-sim
 
 VERILATOR ?= verilator
 
@@ -17,6 +18,13 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
 CPPFLAGS ?= $(INC_FLAGS) -pthread -Wall -std=c++11
 LDFLAGS ?=
+
+get_opcode = $(shell grep ^DECLARE_INSN.*\\\<$(2)\\\> $(1) | sed 's/DECLARE_INSN(.*,\(.*\),.*)/\1/')
+
+include instructions.mk
+
+riscv_gen_srcs = \
+	$(addsuffix .cc,$(riscv_insn_list))
 
 all: verilate $(BUILD_DIR)/simlib-test $(BUILD_DIR)/amos
 	cd $(BUILD_DIR) && make -j -f Vamos_fifo.mk Vamos_fifo
@@ -43,16 +51,30 @@ $(BUILD_DIR)/%.cc.o: %.cc $(HDRS)
 	$(MKDIR_P) $(dir $@)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
+include/insn_list.h: instructions.mk
+	for insn in $(foreach insn,$(riscv_insn_list),$(subst .,_,$(insn))) ; do \
+		printf 'DEFINE_INSN(%s)\n' "$${insn}" ; \
+	done > $@.tmp
+	mv $@.tmp $@
+
+$(riscv_gen_srcs): %.cc: $(SPIKE_DIR)/riscv/insns/%.h $(SRC_DIRS)/insn_template.cc
+	sed 's/NAME/$(subst .cc,,$@)/' $(SRC_DIRS)/insn_template.cc | sed 's/OPCODE/$(call get_opcode,$(SPIKE_DIR)/riscv/encoding.h,$(subst .cc,,$@))/' > $(BUILD_DIR)/$@
+
+$(BUILD_DIR)/$(riscv_gen_srcs).o: $(riscv_gen_srcs)
+	$(CXX) $(CPPFLAGS) -I$(SPIKE_DIR)/riscv -c $(BUILD_DIR)/$< -o $@
+
 verilate:
 	$(VERILATOR) --Mdir $(BUILD_DIR) $(RTL_DIR)/amos_fifo.sv --cc --exe csrc/verilog_tb.cpp
 
 $(BUILD_DIR)/simlib-test: $(BUILD_DIR)/csrc/simlib-test.cpp.o
 	$(CXX) $(LDFLAGS) -o $@ $<
 
-$(BUILD_DIR)/amos: $(BUILD_DIR)/csrc/amos.cpp.o $(BUILD_DIR)/csrc/devices.cpp.o  \
-				   $(BUILD_DIR)/csrc/frontend.cc.o $(BUILD_DIR)/csrc/disasm.cc.o \
-				   $(BUILD_DIR)/csrc/regnames.cc.o
+$(BUILD_DIR)/amos: $(BUILD_DIR)/csrc/amos.cpp.o $(BUILD_DIR)/csrc/devices.cpp.o   \
+				   $(BUILD_DIR)/csrc/frontend.cc.o $(BUILD_DIR)/csrc/disasm.cc.o  \
+				   $(BUILD_DIR)/csrc/regnames.cc.o $(BUILD_DIR)/csrc/backend.cc.o \
+				   $(BUILD_DIR)/$(riscv_gen_srcs).o
 	$(CXX) $(LDFLAGS) -lfesvr -o $@ $^
+
 
 .PHONY: clean
 

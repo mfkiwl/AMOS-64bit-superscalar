@@ -10,6 +10,7 @@
 #include "simlib.hpp"
 #include "encoding.h"
 #include "frontend.h"
+#include "backend.h"
 #include "decode.h"
 #include "disasm.h"
 
@@ -21,7 +22,7 @@ const reg_t PGSIZE = 1 << PGSHIFT;
 // TODO(zarubaf) Re-factor this to the appropriate place, should also be renamed
 amos::amos(int argc, char** argv,
            std::vector<std::pair<reg_t, mem_t*>> mems)
-  : htif_t(argc, argv), mems(mems), disassembler(64) {
+  : htif_t(argc, argv), disassembler(64), mems(mems) {
   // connect memories to bus
   for (auto& x : mems) {
     bus.add_device(x.first, x.second);
@@ -56,7 +57,6 @@ void amos::reset() {
   sim->reset();
 }
 
-
 /// Dummy consumer to print values of instruction fetch stage
 struct Consumer  {
   ChannelRx<instr_t> in;
@@ -68,7 +68,6 @@ struct Consumer  {
     if (in) {
       instr_t instr = in.pop();
       // pad with zeros
-      // std::cout << std::setfill('0') << std::setw(20);
       std::cout << "consumed ";
       std::cout << std::setfill('0') << std::setw(16) << std::hex << instr.pc;
       // this instruction is defined in decode.h
@@ -84,8 +83,11 @@ struct Consumer  {
 void amos::build() {
   // construct the processor
   auto instr = builder->make_channel<instr_t>();
-  builder->add_component(frontend {
+  auto mispredict = builder->make_channel<branchpredict_t>();
+
+  builder->add_component(Frontend {
                                     .instr = instr.tx,
+                                    .mispredict = mispredict.rx,
                                     .bootaddr = 0x80000000,
                                     .instr_if = bus
                                   });
